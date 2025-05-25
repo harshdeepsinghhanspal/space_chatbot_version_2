@@ -159,6 +159,17 @@ from fastapi.responses import FileResponse
 async def serve_index():
     return FileResponse("index.html")
 
+# Clean up repeated lines or repeated phrases
+def cleanup_response(text: str) -> str:
+    lines = text.split("\n")
+    seen = set()
+    cleaned = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and stripped not in seen:
+            cleaned.append(stripped)
+            seen.add(stripped)
+    return "\n".join(cleaned)
 
 # Main endpoint for answering space-related queries
 @app.post("/ask")
@@ -168,6 +179,8 @@ async def ask_spacebot(query: Query):
         return {"response": "🚀 Please ask about space-related topics only!"}
     try:
         answer = chain.invoke({"input": user_input})
+        answer = cleanup_response(answer)
         return {"response": answer}
+
     except Exception as e:
         return {"response": f"❌ Error: {str(e)}"}
