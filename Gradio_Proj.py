@@ -11,6 +11,8 @@ from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
+import re
+
 # List of space-related keywords (for filtering queries)
 space_keywords = [
     # Basic space terms
@@ -132,7 +134,7 @@ app.add_middleware(
 )
 
 # Set the environment variable for the GROQ API key
-os.environ["GROQ_API_KEY"] = "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"
+os.environ["GROQ_API_KEY"] = "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"
 
 llm = ChatGroq(
     temperature=0.3,
@@ -161,6 +163,11 @@ async def serve_index():
 
 # Clean up repeated lines or repeated phrases
 def cleanup_response(text: str) -> str:
+    # Remove **bold** and *italic*
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+
+    # Deduplicate lines
     lines = text.split("\n")
     seen = set()
     cleaned = []
@@ -169,7 +176,20 @@ def cleanup_response(text: str) -> str:
         if stripped and stripped not in seen:
             cleaned.append(stripped)
             seen.add(stripped)
-    return "\n".join(cleaned)
+    
+    result = "\n".join(cleaned)
+
+    # Safely clip to ~512 tokens = approx 2000 characters
+    if len(result) > 2000:
+        # Cut at last complete sentence before 2000 characters
+        truncated = result[:2000]
+        last_dot = truncated.rfind(".")
+        if last_dot != -1:
+            result = truncated[:last_dot + 1]
+        else:
+            result = truncated  # fallback
+
+    return result
 
 # Main endpoint for answering space-related queries
 @app.post("/ask")
@@ -180,6 +200,7 @@ async def ask_spacebot(query: Query):
     try:
         answer = chain.invoke({"input": user_input})
         answer = cleanup_response(answer)
+        answer = answer.replace("\\*", "*")
         return {"response": answer}
 
     except Exception as e:
