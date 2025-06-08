@@ -31,7 +31,7 @@ A Python-based chatbot designed for interactive conversations related to space, 
 
 3. **Run the chatbot**
    ```bash
-   python main.py
+   python Gradio_Proj.py
    ```
 
 *(Adjust the above according to your actual main script and dependencies.)*
